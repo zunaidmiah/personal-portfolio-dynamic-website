@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\cr;
+use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\DB;
 
 class AdminController extends Controller
 {
@@ -21,69 +23,67 @@ class AdminController extends Controller
         }
     }
 
-    /**
-     * Show the form for creating a new resource.
-     *
-     * @return \Illuminate\Http\Response
-     */
-    public function create()
+    public function login()
     {
-        //
+        return view('admin.login');
     }
 
-    /**
-     * Store a newly created resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\Response
-     */
+    public function register()
+    {
+        $user = DB::table('users')->where('type', 'admin')->first();
+        if(isset($user) and !empty($user))  
+            return redirect()->route('login')->with('signup_message', "Already one admin has there!");
+        return view('admin.signup');
+    }
+
+    public function forgot_password()
+    {
+        return view('admin.forgot-password');
+    }
+
     public function store(Request $request)
     {
-        //
+        if(isset($request) and !empty($request->all())){
+            $user = new User();
+            $user->name = $request->input('firstname')." ".$request->input('lastname');
+            $user->email = $request->input('email');
+            $user->type = 'admin';
+            $user->password = Crypt::encrypt($request->input('password'));
+            $user->save();
+            return redirect()->route('login')->with('signin_message', "Registration successfully done!");
+        } else{ 
+            return redirect()->route('signup');
+        }
     }
 
-    /**
-     * Display the specified resource.
-     *
-     * @param  \App\Models\cr  $cr
-     * @return \Illuminate\Http\Response
-     */
-    public function show(cr $cr)
+
+    public function authenticate(Request $request)
     {
-        //
+        if(isset($request) and !empty($request->all())){
+            $user = DB::table('users')->where('email', $request->input('email'))->first();
+            if(isset($user) and !empty($user)){
+                if(Crypt::decrypt($user->password) == $request->input('password')){
+                    $request->session()->put('admin_loggedin', true);
+                    $request->session()->put('user_id', $user->id);
+                    $request->session()->put('user_type', $user->type);
+                    return redirect()->route('admin-dashboard');
+                } else{
+                    return redirect()->route('login')->with('signup_message', 'Sorry! Password didn`t matched.');
+                }
+            } else{
+            return redirect()->route('login')->with('signup_message', 'Sorry! Email is incorrect.');
+            }
+        } else{ 
+            return redirect()->route('login');
+        }
     }
 
-    /**
-     * Show the form for editing the specified resource.
-     *
-     * @param  \App\Models\cr  $cr
-     * @return \Illuminate\Http\Response
-     */
-    public function edit(cr $cr)
-    {
-        //
+
+    public function logout(){
+        session()->put('admin_loggedin', false);
+        session()->put('user_id', false);
+        session()->put('user_type', false);
+        return redirect()->route('login');
     }
 
-    /**
-     * Update the specified resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  \App\Models\cr  $cr
-     * @return \Illuminate\Http\Response
-     */
-    public function update(Request $request, cr $cr)
-    {
-        //
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     *
-     * @param  \App\Models\cr  $cr
-     * @return \Illuminate\Http\Response
-     */
-    public function destroy(cr $cr)
-    {
-        //
-    }
 }
